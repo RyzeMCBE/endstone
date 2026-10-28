@@ -40,6 +40,48 @@ recipes.json
 
 El comando solo puede utilizarse desde la consola.
 
+## Paquete de estructuras Jigsaw (ID 313)
+
+El exportador guarda una copia **binaria exacta** del paquete JigsawStructureDataPacket
+cuando BDS lo envia a un cliente. No interpreta estructuras internas de memoria de BDS
+ni inventa NBT. El archivo contiene el **encabezado de red** (varuint) y todo el
+payload original:
+
+```text
+jigsaw_structure_data_packet.bin
+```
+
+Para que el archivo este disponible:
+
+1. Inicia el BDS compatible y espera a que el servidor indique que ha arrancado.
+2. Conecta al menos un cliente Bedrock de version compatible y permite que BDS envie
+   el paquete 313 (el paquete puede depender de la configuracion de worldgen del mundo).
+3. Ejecuta `exportvanilla` de nuevo. Se guardaran los 11 archivos habituales y,
+   si se capturo, tambien el paquete Jigsaw.
+
+Si BDS todavia no ha emitido el paquete, `exportvanilla` registra una advertencia
+y exporta los 11 archivos restantes; **no genera un paquete Jigsaw vacio**.
+
+En el exportador con interfaz, el menu `File > Export > Export All` incluye Jigsaw
+si ya se capturo, y `File > Export > Jigsaw Packet (313)` permite exportarlo por
+separado. Esta ultima opcion se habilita solo despues de una captura.
+
+Importante: este archivo binario **no es un NBT listo para importar**, sino
+un paquete Bedrock de red. Debe decodificarse usando el codec correspondiente.
+El limite de captura es 64 MiB para evitar retener indefinidamente un paquete
+anormal. Si necesitas Jigsaw sin conectar un cliente, habra que validar primero
+la ABI de JigsawStructureRegistry del BDS exacto; no debe reutilizarse el
+offset 600 de BDS 1.26.50/1.26.51 sin esa validacion.
+
+## Compatibilidad con BDS 1.26.60
+
+Endstone oficial incorporo soporte para BDS 1.26.60 en la version 0.11.15
+(2026-10-28). Este fork se basa aun en codigo anterior; antes de ejecutar el
+servidor 1.26.60 con estos cambios se debe integrar la actualizacion oficial
+y compilar/probar el fork. No se asume compatibilidad binaria solo porque
+el exportador ha sido actualizado.
+
+
 ## Compilar en Ubuntu
 
 El proyecto utiliza Clang 20, libc++ y Ninja. Desde la raíz del código fuente:
