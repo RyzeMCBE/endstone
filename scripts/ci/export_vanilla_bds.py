@@ -26,6 +26,10 @@ def main() -> int:
     server_dir = root / "bds-runtime"
     output = root / "export-output"
     output.mkdir(exist_ok=True)
+    # Never launch Python from the repository root: its endstone/ source tree
+    # would shadow the just-installed wheel (missing compiled endstone._python).
+    runner_cwd = root / "bds-runner"
+    runner_cwd.mkdir(exist_ok=True)
     lines: queue.Queue[str] = queue.Queue()
     started = exported = False
     errors: list[str] = []
@@ -69,7 +73,7 @@ def main() -> int:
         proc = subprocess.Popen(
             [sys.executable, "-u", "-m", "endstone", "--yes",
              "--no-interactive", "--server-folder", str(server_dir)],
-            cwd=root, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            cwd=runner_cwd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, bufsize=1, text=True, encoding="utf-8",
             errors="replace",
         )
