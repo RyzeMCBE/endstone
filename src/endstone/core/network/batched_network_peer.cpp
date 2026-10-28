@@ -178,9 +178,9 @@ void EndstoneBatchedNetworkPeer::sendPacket(const std::string &data, Reliability
 {
     const auto &server = EndstoneServer::getInstance();
     ReadOnlyBinaryStream peek(data, false);
-    const auto result = peek.getUnsignedVarInt().discardError();
-    if (result) {
-        const auto id = PacketHeader::fromRaw(result.value()).getPacketId();
+    const auto peek_result = peek.getUnsignedVarInt().discardError();
+    if (peek_result) {
+        const auto id = PacketHeader::fromRaw(peek_result.value()).getPacketId();
         // Keep the original BDS packet (header + payload), before plugins rewrite it.
         if (static_cast<int>(id) == devtools::JigsawPacketCapture::PacketId) {
             devtools::JigsawPacketCapture::capture(data);
