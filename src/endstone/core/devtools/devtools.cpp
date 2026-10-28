@@ -34,6 +34,7 @@
 #include "endstone/core/devtools/imgui_impl_opengl3.h"
 #include "endstone/core/devtools/imgui_json.h"
 #include "endstone/core/devtools/vanilla_data.h"
+#include "endstone/core/devtools/jigsaw_packet_capture.h"
 #include "endstone/core/devtools/vanilla_exporter.h"
 #include "endstone/core/logger_factory.h"
 #include "endstone/detail.h"
@@ -272,7 +273,16 @@ void render()
                 auto *data = VanillaData::get();
                 ImGui::SeparatorText("Export");
                 if (ImGui::MenuItem("Export All", nullptr, false, data != nullptr)) {
-                    exportAll(data_dir, *data);
+                    const auto files = exportAll(data_dir, *data);
+                    gLogger.info("Exported {} vanilla data files to {}", files.size(), data_dir.string());
+                    if (!JigsawPacketCapture::hasPacket()) {
+                        gLogger.warning("Jigsaw packet not captured: connect a compatible client first.");
+                    }
+                }
+                if (ImGui::MenuItem("Jigsaw Packet (313)", nullptr, false, JigsawPacketCapture::hasPacket())) {
+                    if (const auto path = exportJigsawPacket(data_dir)) {
+                        gLogger.info("Exported {}", path->string());
+                    }
                 }
                 if (ImGui::BeginMenu("JSON files", data != nullptr)) {
                     if (ImGui::MenuItem("Block Types")) {
@@ -306,7 +316,7 @@ void render()
                             {"furnace", data->recipes.furnace},
                             {"furnaceAux", data->recipes.furnace_aux},
                             {"multi", data->recipes.multi},
-                            {"shulkerBox", data->recipes.user_data_shapeless},
+                            {"userDataShapeless", data->recipes.user_data_shapeless},
                             {"shapelessChemistry", data->recipes.shapeless_chemistry},
                             {"shapedChemistry", data->recipes.shaped_chemistry},
                             {"smithingTransform", data->recipes.smithing_transform},

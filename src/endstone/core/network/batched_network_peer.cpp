@@ -28,6 +28,7 @@
 #include "bedrock/network/packet/start_game_packet.h"
 #include "bedrock/network/server_network_system.h"
 #include "bedrock/server/server_instance.h"
+#include "endstone/core/devtools/jigsaw_packet_capture.h"
 #include "endstone/core/level/level.h"
 #include "endstone/core/map/map_view.h"
 #include "endstone/core/player.h"
@@ -177,11 +178,17 @@ void EndstoneBatchedNetworkPeer::sendPacket(const std::string &data, Reliability
 {
     const auto &server = EndstoneServer::getInstance();
     ReadOnlyBinaryStream peek(data, false);
-    if (const auto result = peek.getUnsignedVarInt().discardError();
-        result && !isPatched(PacketHeader::fromRaw(result.value()).getPacketId()) &&
-        !server.getEndstonePluginManager().isEventRegistered<PacketSendEvent>()) {
-        writePacket(data, compressible);
-        return;
+    const auto result = peek.getUnsignedVarInt().discardError();
+    if (result) {
+        const auto id = PacketHeader::fromRaw(result.value()).getPacketId();
+        // Keep the original BDS packet (header + payload), before plugins rewrite it.
+        if (static_cast<int>(id) == devtools::JigsawPacketCapture::PacketId) {
+            devtools::JigsawPacketCapture::capture(data);
+        }
+        if (!isPatched(id) && !server.getEndstonePluginManager().isEventRegistered<PacketSendEvent>()) {
+            writePacket(data, compressible);
+            return;
+        }
     }
 
     auto &network = server.getServer().getNetwork();
@@ -202,13 +209,7 @@ void EndstoneBatchedNetworkPeer::sendPacket(const std::string &data, Reliability
     // Parse packet header
     auto header = PacketHeader::fromRaw(result.value());
 
-    // Get player object - if exists
-    const auto *server_player =
-        server.getServer().getMinecraft()->getServerNetworkHandler()->getServerPlayer(id_, header.getRecipientSubId());
-    endstone::Player *player = nullptr;
-    if (server_player) {
-        player = &server_player->getEndstoneActor<EndstonePlayer>();
-    }
+    endstone::Player *player = getPlayer(header.getRecipientSubId());
 
     // Create packet send event
     auto payload = stream.getView().substr(stream.getReadPointer());
@@ -309,7 +310,6 @@ NetworkPeer::DataStatus EndstoneBatchedNetworkPeer::_receivePacket(std::string &
         return readPacket(out_data, timepoint_ptr);
     }
 
-    auto network_handler = server.getServer().getMinecraft()->getServerNetworkHandler();
     while (true) {
         const auto status = readPacket(out_data, timepoint_ptr);
         if (status != DataStatus::HasData) {
@@ -323,11 +323,7 @@ NetworkPeer::DataStatus EndstoneBatchedNetworkPeer::_receivePacket(std::string &
         }
 
         const auto header = PacketHeader::fromRaw(result.value());
-
-        EndstonePlayer *player = nullptr;
-        if (const auto *p = network_handler->getServerPlayer(id_, header.getSenderSubId())) {
-            player = &p->getEndstoneActor<EndstonePlayer>();
-        }
+        auto *player = getPlayer(header.getSenderSubId());
 
         const auto payload = stream.getView().substr(stream.getReadPointer());
         const auto address = player ? player->getAddress() : EndstoneSocketAddress::fromNetworkIdentifier(id_);
@@ -414,6 +410,26 @@ NetworkPeer::DataStatus EndstoneBatchedNetworkPeer::readPacket(std::string &out_
         compressible_bytes_ = 0;
     }
     return *async_peer_;
+}
+
+EndstonePlayer *EndstoneBatchedNetworkPeer::getPlayer(SubClientId sub_id)
+{
+    const auto index = static_cast<std::size_t>(sub_id);
+    if (index < players_.size()) {
+        if (auto *player = players_[index].tryUnwrap<::Player>()) {
+            return &player->getEndstoneActor<EndstonePlayer>();
+        }
+    }
+
+    const auto &server = EndstoneServer::getInstance();
+    auto *player = server.getServer().getMinecraft()->getServerNetworkHandler()->getServerPlayer(id_, sub_id);
+    if (!player) {
+        return nullptr;
+    }
+    if (index < players_.size()) {
+        players_[index] = player->getWeakEntity();
+    }
+    return &player->getEndstoneActor<EndstonePlayer>();
 }
 
 }  // namespace endstone::core

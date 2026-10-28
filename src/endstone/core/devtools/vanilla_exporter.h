@@ -15,9 +15,12 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <vector>
 
-#include "endstone/core/devtools/vanilla_data.h"\n\nclass Level;
+#include "endstone/core/devtools/vanilla_data.h"
+
+class Level;
 
 namespace endstone::core::devtools {
 
@@ -28,6 +31,12 @@ namespace endstone::core::devtools {
  * function creates the destination directory when necessary and throws
  * std::runtime_error when a file cannot be written.
  */
-std::vector<std::filesystem::path> exportAll(const std::filesystem::path &base_path, const VanillaData &data);\n\n/** Exports the BDS 1.26.50+ jigsaw structure rules loaded by the current server. */\nstd::filesystem::path exportJigsawStructureData(const std::filesystem::path &base_path, const std::string &version, const ::Level &level);
+std::vector<std::filesystem::path> exportAll(const std::filesystem::path &base_path, const VanillaData &data);
+
+/**
+ * Exports the complete original network packet (including the varint header).
+ * Returns nullopt if BDS has not sent packet ID 313 to a client yet.
+ */
+std::optional<std::filesystem::path> exportJigsawPacket(const std::filesystem::path &base_path);
 
 }  // namespace endstone::core::devtools
