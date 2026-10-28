@@ -76,10 +76,13 @@ offset 600 de BDS 1.26.50/1.26.51 sin esa validacion.
 ## Compatibilidad con BDS 1.26.60
 
 Endstone oficial incorporo soporte para BDS 1.26.60 en la version 0.11.15
-(2026-10-28). Este fork se basa aun en codigo anterior; antes de ejecutar el
-servidor 1.26.60 con estos cambios se debe integrar la actualizacion oficial
-y compilar/probar el fork. No se asume compatibilidad binaria solo porque
-el exportador ha sido actualizado.
+(2026-10-28). La rama de este PR integra exactamente el commit de la release
+b4aaa87d2c5305e7d340168f824ac2e2ea722e44 mediante un merge de dos
+padres que preserva las modificaciones del fork.
+
+La integracion de codigo NO equivale a una compilacion y una prueba en BDS.
+El soporte real para 1.26.60.6 y la captura del paquete 313 siguen pendientes
+de validar con GitHub Actions y un servidor real.
 
 
 ## Compilar en Ubuntu
