@@ -28,6 +28,7 @@
 #include "bedrock/network/packet/start_game_packet.h"
 #include "bedrock/network/server_network_system.h"
 #include "bedrock/server/server_instance.h"
+#include "endstone/core/devtools/jigsaw_packet_capture.h"
 #include "endstone/core/level/level.h"
 #include "endstone/core/map/map_view.h"
 #include "endstone/core/player.h"
@@ -177,11 +178,17 @@ void EndstoneBatchedNetworkPeer::sendPacket(const std::string &data, Reliability
 {
     const auto &server = EndstoneServer::getInstance();
     ReadOnlyBinaryStream peek(data, false);
-    if (const auto result = peek.getUnsignedVarInt().discardError();
-        result && !isPatched(PacketHeader::fromRaw(result.value()).getPacketId()) &&
-        !server.getEndstonePluginManager().isEventRegistered<PacketSendEvent>()) {
-        writePacket(data, compressible);
-        return;
+    const auto result = peek.getUnsignedVarInt().discardError();
+    if (result) {
+        const auto id = PacketHeader::fromRaw(result.value()).getPacketId();
+        // Keep the original BDS packet (header + payload), before plugins rewrite it.
+        if (static_cast<int>(id) == devtools::JigsawPacketCapture::PacketId) {
+            devtools::JigsawPacketCapture::capture(data);
+        }
+        if (!isPatched(id) && !server.getEndstonePluginManager().isEventRegistered<PacketSendEvent>()) {
+            writePacket(data, compressible);
+            return;
+        }
     }
 
     auto &network = server.getServer().getNetwork();
