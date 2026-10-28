@@ -84,7 +84,9 @@ def main() -> int:
         if not path.is_file():
             raise RuntimeError("BDS version.txt was not created")
         version = path.read_text(encoding="utf-8").strip()
-        if version != "1.26.60":
+        # Endstone may write its internal Minecraft version (26.60) rather than
+        # the marketing version (1.26.60) to version.txt. Both identify BDS 1.26.60.
+        if version not in ("26.60", "1.26.60"):
             raise RuntimeError("Unexpected BDS version " + repr(version))
         command("exportvanilla")
         await_log("Vanilla data export completed:", 600)
