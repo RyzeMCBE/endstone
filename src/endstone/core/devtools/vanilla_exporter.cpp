@@ -21,7 +21,8 @@
 
 #include <zstr.hpp>
 
-#include "bedrock/nbt/nbt_io.h"\n#include "bedrock/world/level/level_interface.h"\n#include "endstone/core/base64.h"\n#include "bedrock/world/level/levelgen/structure/jigsaw_structure_registry_data.h"
+#include "bedrock/nbt/nbt_io.h"
+#include "endstone/core/devtools/jigsaw_packet_capture.h"
 #include "bedrock/util/string_byte_output.h"
 
 namespace endstone::core::devtools {
@@ -50,6 +51,28 @@ void saveNbt(const std::filesystem::path &path, const CompoundTag &value)
 }
 
 }  // namespace
+
+std::optional<std::filesystem::path> exportJigsawPacket(const std::filesystem::path &base_path)
+{
+    auto captured = JigsawPacketCapture::snapshot();
+    if (!captured) {
+        return std::nullopt;
+    }
+
+    std::error_code error;
+    std::filesystem::create_directories(base_path, error);
+    if (error) {
+        throw std::runtime_error("Unable to create " + base_path.string() + ": " + error.message());
+    }
+
+    const auto path = base_path / "jigsaw_structure_data_packet.bin";
+    std::ofstream file(path, std::ios::out | std::ios::binary | std::ios::trunc);
+    file.write(captured->data(), static_cast<std::streamsize>(captured->size()));
+    if (!file.good()) {
+        throw std::runtime_error("Unable to write " + path.string());
+    }
+    return path;
+}
 
 std::vector<std::filesystem::path> exportAll(const std::filesystem::path &base_path, const VanillaData &data)
 {
@@ -108,6 +131,10 @@ std::vector<std::filesystem::path> exportAll(const std::filesystem::path &base_p
         {"materialReducer", data.recipes.material_reducer},
     };
     save_json(recipes, "recipes.json");
+
+    if (auto jigsaw_packet = exportJigsawPacket(base_path)) {
+        files.emplace_back(*jigsaw_packet);
+    }
 
     return files;
 }
