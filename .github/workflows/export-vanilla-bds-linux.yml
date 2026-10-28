@@ -1,0 +1,76 @@
+name: Export vanilla BDS 1.26.60 (Linux)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - automation/export-vanilla-bds12660
+    paths:
+      - '.github/workflows/export-vanilla-bds-linux.yml'
+      - 'scripts/ci/export_vanilla_bds.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: export-bds-12660-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Compile and run official BDS 1.26.60 (Linux x86_64)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout source and submodules
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Set up Clang 20 and libc++
+        uses: ./.github/actions/setup-clang
+
+      - name: Set up CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Restore Conan dependencies cache
+        uses: ./.github/actions/conan-cache/restore
+
+      - name: Set up Conan and Python 3.12
+        uses: ./.github/actions/setup-conan
+        with:
+          python-version: '3.12'
+          install-dependencies: 'true'
+
+      - name: Compile Linux wheel from this branch
+        run: |
+          python -m pip install --upgrade pip wheel uv
+          python -m pip wheel . --no-deps --wheel-dir wheelhouse
+          ls -lh wheelhouse/
+
+      - name: Install locally compiled Endstone
+        run: |
+          python -m pip install wheelhouse/endstone-*.whl
+          python -m endstone --version
+
+      - name: Start official BDS and run exportvanilla
+        run: python -u scripts/ci/export_vanilla_bds.py
+
+      - name: Upload vanilla data, manifest and BDS logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vanilla-bds-1.26.60-linux-${{ github.run_id }}
+          path: export-output/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload compiled Linux wheel
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: endstone-wheel-linux-${{ github.run_id }}
+          path: wheelhouse/*.whl
+          if-no-files-found: warn
+          retention-days: 30
